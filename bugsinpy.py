@@ -7,6 +7,9 @@ import filecmp
 import shutil
 import re
 
+BEFORE_FOLDER_NAME = "before"
+AFTER_FOLDER_NAME = "after"
+
 def main():
     print("Starting checkout")
     print("Projects : ")
@@ -17,47 +20,47 @@ def main():
 def process(project):
     print("Processing " + project)
     bugs = active_bugs(project)
-    print("Found " + str(bugs) + " active bugs")
+    print(f"Found {str(bugs)} active bugs")
     for bug in range(1, bugs + 1):
-        print("Checking bug " + str(bug))
+        print(f"Checking bug {str(bug)}")
 
-        bug_buggy_path = out_path + "/buggy/" + project + "/" + str(bug)
-        bug_fixed_path = out_path + "/fixed/" + project + "/" + str(bug)
+        bug_before_path = f"{out_path}/{BEFORE_FOLDER_NAME}/{project}"/"{str(bug)}"
+        bug_after_path = f"{out_path}/{AFTER_FOLDER_NAME}/{project}"/"{str(bug)}"
 
-        if os.path.exists(bug_buggy_path) or os.path.exists(bug_fixed_path):
-            print("Bug " + str(bug) + " already processed, skipping")
+        if os.path.exists(bug_before_path) or os.path.exists(bug_after_path):
+            print(f"Bug {str(bug)} already processed, skipping")
             continue
 
-        code = os.system(b4p_bin + "-info -p " + project + " -i " + str(bug))
+        code = os.system(f"{b4p_bin}-info -p {project} -i {str(bug)}")
         if code != 0:
-            print("Bug " + str(bug) + " is deprecated, skipping")
+            print(f"Bug {str(bug)} is deprecated, skipping")
             continue
 
-        os.system("mkdir -p " + bug_buggy_path)
-        os.system("mkdir -p " + bug_fixed_path)
-        os.system(b4p_bin + "-checkout -p " + project + " -v 0 -i " + str(bug) + " -w " + tmp_path + "/buggy")
-        os.system(b4p_bin + "-checkout -p " + project + " -v 1 -i " + str(bug) + " -w " + tmp_path + "/fixed")
-        changed_files = compare(tmp_path + "/buggy/" + project, tmp_path + "/fixed/" + project)
+        os.system(f"mkdir -p {bug_before_path}")
+        os.system(f"mkdir -p {bug_after_path}")
+        os.system(f"{b4p_bin}-checkout -p {project} -v 0 -i {str(bug)} -w {tmp_path} /{BEFORE_FOLDER_NAME}")
+        os.system(f"{b4p_bin}-checkout -p {project} -v 1 -i {str(bug)} -w {tmp_path} /{AFTER_FOLDER_NAME}")
+        changed_files = compare(f"{tmp_path}/{BEFORE_FOLDER_NAME}/{project}", f"{tmp_path}/{AFTER_FOLDER_NAME}/{project}")
         for changed_file in changed_files:
-            print("Copying " + str(changed_file))
-            buggy_source = changed_file[1]
-            buggy_dest = bug_buggy_path + "/" + changed_file[0].replace("/","_")
-            shutil.copyfile(buggy_source, buggy_dest)
-            fixed_source = changed_file[2]
-            fixed_dest = bug_fixed_path + "/" + changed_file[0].replace("/","_")
-            shutil.copyfile(fixed_source, fixed_dest)
+            print(f"Copying {str(changed_file)}")
+            before_source = changed_file[1]
+            before_dest = f"{bug_before_path}/{changed_file[0].replace('/','_')}"
+            shutil.copyfile(before_source, before_dest)
+            after_source = changed_file[2]
+            after_dest = f"{bug_after_path}/{changed_file[0].replace('/','_')}"
+            shutil.copyfile(after_source, after_dest)
 
 def active_bugs(project):
-    stream = os.popen(b4p_bin + "-info -p " + project + " | grep 'Number of bugs'")
+    stream = os.popen(f"{b4p_bin}-info -p {project} | grep 'Number of bugs'")
     output = stream.read()
     match = re.search(r'Number of bugs\s+:\s+(\d+)', output.splitlines()[0])
     return int(match.group(1))
 
-def compare(buggy, fixed):
+def compare(before, after):
     comparison = []
-    for file in glob.glob(buggy + "/**/*.py", recursive = True):
-        base = file[len(buggy) + 1:]
-        other = fixed + "/" + base
+    for file in glob.glob(f"{BEFORE_FOLDER_NAME}/**/*.py", recursive = True):
+        base = file[len(before) + 1:]
+        other = f"{after}/{base}"
         if os.path.exists(other):
             if filecmp.cmp(file, other) == False:
                 comparison.append((base, file, other))

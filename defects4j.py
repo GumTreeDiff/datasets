@@ -6,6 +6,9 @@ import glob
 import filecmp
 import shutil
 
+BEFORE_FOLDER_NAME = "before"
+AFTER_FOLDER_NAME = "after"
+
 def main():
     print("Starting checkout")
     print("Projects : ")
@@ -14,48 +17,48 @@ def main():
         process(project)
 
 def process(project):
-    print("Processing " + project)
+    print(f"Processing {project}")
     bugs = active_bugs(project)
     for bug in bugs:
-        print("Checking bug " + str(bug))
+        print(f"Checking bug {str(bug)}")
 
-        bug_buggy_path = out_path + "/buggy/" + project + "/" + str(bug)
-        bug_fixed_path = out_path + "/fixed/" + project + "/" + str(bug)
+        bug_before_path = f"{out_path}/{BEFORE_FOLDER_NAME}/{project}/{str(bug)}"
+        bug_after_path = f"{out_path}/{AFTER_FOLDER_NAME}/{project}/{str(bug)}"
 
-        if os.path.exists(bug_buggy_path) or os.path.exists(bug_fixed_path):
-            print("Bug " + str(bug) + " already processed, skipping")
+        if os.path.exists(bug_before_path) or os.path.exists(bug_after_path):
+            print(f"Bug {str(bug)} already processed, skipping")
             continue
 
-        code = os.system(d4j_bin + " info -p " + project + " -b " + str(bug))
+        code = os.system(f"{d4j_bin} info -p {project} -b {str(bug)}")
         if code != 0:
-            print("Bug " + str(bug) + " is deprecated, skipping")
+            print(f"Bug {str(bug)} is deprecated, skipping")
             continue
 
-        os.system("mkdir -p " + bug_buggy_path)
-        os.system("mkdir -p " + bug_fixed_path)
-        os.system(d4j_bin + " checkout -p " + project + " -v" + str(bug) + "b -w " + tmp_path + "/buggy")
-        os.system(d4j_bin + " checkout -p " + project + " -v" + str(bug) + "f -w " + tmp_path + "/fixed")
-        changed_files = compare(tmp_path + "/buggy", tmp_path + "/fixed")
+        os.system(f"mkdir -p {bug_before_path}")
+        os.system(f"mkdir -p {bug_after_path}")
+        os.system(f"{d4j_bin} checkout -p {project} -v{str(bug)}b -w {tmp_path}/{BEFORE_FOLDER_NAME}")
+        os.system(f"{d4j_bin} checkout -p {project} -v{str(bug)}f -w {tmp_path}/{AFTER_FOLDER_NAME}")
+        changed_files = compare(f"{tmp_path}/{BEFORE_FOLDER_NAME}", f"{tmp_path}/{AFTER_FOLDER_NAME}")
         for changed_file in changed_files:
-            print("Copying " + str(changed_file))
-            buggy_source = changed_file[1]
-            buggy_dest = bug_buggy_path + "/" + changed_file[0].replace("/","_")
-            shutil.copyfile(buggy_source, buggy_dest)
-            fixed_source = changed_file[2]
-            fixed_dest = bug_fixed_path + "/" + changed_file[0].replace("/","_")
-            shutil.copyfile(fixed_source, fixed_dest)
+            print(f"Copying {str(changed_file)}")
+            before_source = changed_file[1]
+            before_dest = f"{bug_before_path}/{changed_file[0].replace('/','_')}"
+            shutil.copyfile(before_source, before_dest)
+            after_source = changed_file[2]
+            after_dest = f"{bug_after_path}/{changed_file[0].replace('/','_')}"
+            shutil.copyfile(after_source, after_dest)
     sys.exit(0)
 
 def active_bugs(project):
-    stream = os.popen(d4j_bin + " bids -p " + project)
+    stream = os.popen(f"{d4j_bin} bids -p {project}")
     output = stream.read()
     return output.splitlines()
 
-def compare(buggy, fixed):
+def compare(before, after):
     comparison = []
-    for file in glob.glob(buggy + "/**/*.java", recursive = True):
-        base = file[len(buggy) + 1:]
-        other = fixed + "/" + base
+    for file in glob.glob(f"{before}/**/*.java", recursive = True):
+        base = file[len(before) + 1:]
+        other = f"{after}/{base}"
 
         if os.path.exists(other):
             if filecmp.cmp(file, other) == False:
