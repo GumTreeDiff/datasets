@@ -19,7 +19,7 @@ def compute_stats(dataset, extension):
             all_lines = line
         else:
             all_lines = pd.concat([all_lines, line], ignore_index=True)
-    all_lines.to_csv(f"{dataset}.csv", index=False)
+    all_lines.to_csv(f"{dataset}-sizes.csv", index=False)
 
 if __name__ == '__main__':
     dataset = sys.argv[1]
